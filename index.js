@@ -27,6 +27,10 @@ app.post('/scan', async (req, res) => {
       body: JSON.stringify(req.body),
     });
     const data = await response.json();
+    // Debug: log what we got back
+    console.log('stop_reason:', data.stop_reason);
+    console.log('content types:', (data.content||[]).map(b => b.type));
+    console.log('error:', data.error);
     res.json(data);
   } catch (e) {
     console.error('Scan error:', e);
