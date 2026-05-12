@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
 const app = express();
@@ -8,13 +7,11 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, APCA-API-KEY-ID, APCA-API-SECRET-KEY');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '4mb' }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -32,11 +29,11 @@ app.post('/scan', async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (e) {
+    console.error('Scan error:', e);
     res.status(500).json({ error: e.message });
   }
 });
 
-// Alpaca proxy - fixes CORS for price data too
 app.get('/alpaca-prices', async (req, res) => {
   try {
     const symbols = req.query.symbols;
@@ -57,4 +54,4 @@ app.get('/alpaca-prices', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Proxy live on port ${PORT}`));
