@@ -1,6 +1,6 @@
 const express = require('express');
 const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
-const nodemailer = require('nodemailer');
+
 const PDFDocument = require('pdfkit');
 
 const app = express();
@@ -16,9 +16,9 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '4mb' }));
 
 // CONFIG
-const GMAIL_USER  = 'moconnell237@gmail.com';
-const GMAIL_PASS  = 'svji tilk szza fjfd';
-const REPORT_TO   = 'moconnell237@gmail.com';
+const SENDGRID_KEY = process.env.SENDGRID_API_KEY;
+const FROM_EMAIL   = 'moconnell237@gmail.com';
+const REPORT_TO    = 'moconnell237@gmail.com';
 const ALPACA_KEY  = 'PKS4GQ5KF4O4TVM6QCMNK2XRHA';
 const ALPACA_SEC  = 'DqbVvYukgJMXQtHY2AFx96P1qo2Sbo3jgkpbkwdytbMZ';
 const ALPACA_BASE = 'https://paper-api.alpaca.markets/v2';
@@ -59,11 +59,7 @@ const aHeaders = () => ({
   'Content-Type': 'application/json',
 });
 
-// GMAIL
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: GMAIL_USER, pass: GMAIL_PASS },
-});
+
 
 // SCAN ONE TICKER
 async function scanTicker(holding) {
@@ -347,15 +343,32 @@ async function buildEveningReport() {
   return { html, pdf, date };
 }
 
-// SEND EMAIL
+// SEND EMAIL via SendGrid HTTP API
 async function sendEmail(subject, html, pdf, filename) {
-  await transporter.sendMail({
-    from: `"AI Energy Trader" <${GMAIL_USER}>`,
-    to: REPORT_TO,
+  const body = {
+    personalizations: [{ to: [{ email: REPORT_TO }] }],
+    from: { email: FROM_EMAIL, name: 'AI Energy Trader' },
     subject,
-    html,
-    attachments: [{ filename, content:pdf, contentType:'application/pdf' }],
+    content: [{ type: 'text/html', value: html }],
+    attachments: [{
+      content: pdf.toString('base64'),
+      filename,
+      type: 'application/pdf',
+      disposition: 'attachment',
+    }],
+  };
+  const resp = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SENDGRID_KEY}`,
+    },
+    body: JSON.stringify(body),
   });
+  if (resp.status >= 400) {
+    const err = await resp.text();
+    throw new Error(`SendGrid error ${resp.status}: ${err}`);
+  }
   console.log(`Email sent: ${subject}`);
 }
 
